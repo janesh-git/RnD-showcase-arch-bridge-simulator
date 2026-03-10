@@ -1,6 +1,7 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 st.set_page_config(layout="wide", page_title="Safety Analysis of Arch Geometry")
 
@@ -63,21 +64,52 @@ is_inside_blocks = np.all((y_thrust <= y_top) & (y_thrust >= y_bottom))
 # --- PLOTTING ---
 fig, ax = plt.subplots(figsize=(12, 6))
 
-# Draw the blocks
-ax.plot(x_arch, y_top, 'k-', linewidth=2)
-ax.plot(x_arch, y_bottom, 'k-', linewidth=2)
+# 1. Solid Bridge Blocks
+arch_color = '#e6e6e6'
+core_color = '#cce5ff'
 
-# Vertical end caps to make the bridge look solid
-ax.plot([0, 0], [y_bottom[0], y_top[0]], 'k-', linewidth=2)
-ax.plot([span, span], [y_bottom[-1], y_top[-1]], 'k-', linewidth=2)
-
-ax.fill_between(x_arch, y_bottom, y_top, color='#cccccc', alpha=0.5, label='Masonry Blocks')
+ax.fill_between(x_arch, y_bottom, y_top, color=arch_color, alpha=1.0, zorder=1)
+ax.plot(x_arch, y_top, 'k-', linewidth=2, zorder=3)
+ax.plot(x_arch, y_bottom, 'k-', linewidth=2, zorder=3)
 
 # Middle Third Core
-ax.plot(x_arch, y_mid_top, color='blue', linestyle=':', alpha=0.5)
-ax.plot(x_arch, y_mid_bot, color='blue', linestyle=':', alpha=0.5)
-ax.fill_between(x_arch, y_mid_bot, y_mid_top, color='#87CEFA', alpha=0.5, label='Middle-Third Core')
+ax.fill_between(x_arch, y_mid_bot, y_mid_top, color=core_color, alpha=1.0, zorder=2)
+ax.plot(x_arch, y_mid_top, color='blue', linestyle=':', alpha=0.5, zorder=3)
+ax.plot(x_arch, y_mid_bot, color='blue', linestyle=':', alpha=0.5, zorder=3)
 
+# 2. Rounded, machined end-caps for the bridge
+theta_left = np.linspace(np.pi/2, 3*np.pi/2, 50)
+ax.add_patch(patches.Circle((0,0), thickness/2, facecolor=arch_color, edgecolor='none', zorder=1))
+ax.plot((thickness/2) * np.cos(theta_left), (thickness/2) * np.sin(theta_left), 'k-', linewidth=2, zorder=3)
+
+theta_right = np.linspace(-np.pi/2, np.pi/2, 50)
+ax.add_patch(patches.Circle((span,0), thickness/2, facecolor=arch_color, edgecolor='none', zorder=1))
+ax.plot(span + (thickness/2) * np.cos(theta_right), (thickness/2) * np.sin(theta_right), 'k-', linewidth=2, zorder=3)
+
+# 3. Ground and Natural Structural Supports
+ground_y = -span * 0.12 # Ground scales naturally with the span
+tri_w = span * 0.05     # Width of support bases
+
+# Thick Ground Line
+ax.plot([-span*0.1, span*1.1], [ground_y, ground_y], color='#333333', linewidth=4, zorder=1)
+
+# Left and Right Base Triangles (Anchored to ground)
+left_tri = np.array([[0, 0], [-tri_w/2, ground_y], [tri_w/2, ground_y]])
+ax.fill(left_tri[:,0], left_tri[:,1], color='#666666', zorder=10)
+
+right_tri = np.array([[span, 0], [span - tri_w/2, ground_y], [span + tri_w/2, ground_y]])
+ax.fill(right_tri[:,0], right_tri[:,1], color='#666666', zorder=10)
+
+# Physical Pins (White cutouts with black inner bolts to complete the mechanical look)
+ax.add_patch(patches.Circle((0, 0), radius=thickness/2.5, facecolor='white', edgecolor='black', linewidth=2, zorder=11))
+ax.add_patch(patches.Circle((span, 0), radius=thickness/2.5, facecolor='white', edgecolor='black', linewidth=2, zorder=11))
+ax.add_patch(patches.Circle((0, 0), radius=thickness/8, facecolor='#666666', edgecolor='black', linewidth=1, zorder=12))
+ax.add_patch(patches.Circle((span, 0), radius=thickness/8, facecolor='#666666', edgecolor='black', linewidth=1, zorder=12))
+
+# Virtual Crown Hinge
+ax.plot(span/2, rise, marker='o', markersize=10, markerfacecolor='white', markeredgecolor='black', markeredgewidth=2, zorder=12, label='Virtual Crown Hinge')
+
+# 4. Thrust Line
 if is_in_middle_third:
     line_color = '#2ca02c'
     status = "SAFE: Thrust line in middle third. Pure compression."
@@ -88,28 +120,10 @@ else:
     line_color = '#d62728'
     status = "CRITICAL: Thrust line exited geometry. COLLAPSE!"
 
-ax.plot(x_arch, y_thrust, color=line_color, linewidth=3, label='Thrust Line')
+# Drew thrust line at zorder=13 so it elegantly stems directly out of the mechanical pins
+ax.plot(x_arch, y_thrust, color=line_color, linewidth=3, zorder=13, label='Thrust Line')
 
-# --- GROUND AND STRUCTURAL SUPPORTS ---
-ground_y = -thickness / 2
-
-# Thick Ground Line
-ax.plot([-span*0.1, span*1.1], [ground_y, ground_y], color='#333333', linewidth=4, zorder=1)
-
-# Left Support Triangle (Custom drawn to sit perfectly on the ground)
-triangle_h = thickness / 2
-triangle_w = span * 0.04
-left_triangle = np.array([[0, 0], [-triangle_w/2, ground_y], [triangle_w/2, ground_y], [0, 0]])
-ax.fill(left_triangle[:,0], left_triangle[:,1], color='black', zorder=5)
-
-# Right Support Triangle
-right_triangle = np.array([[span, 0], [span - triangle_w/2, ground_y], [span + triangle_w/2, ground_y], [span, 0]])
-ax.fill(right_triangle[:,0], right_triangle[:,1], color='black', zorder=5)
-
-# Virtual Crown Hinge (Keep the circle)
-ax.plot(span/2, rise, marker='o', markersize=10, markerfacecolor='white', markeredgecolor='black', markeredgewidth=2, zorder=6, label='Virtual Crown Hinge')
-
-# Draw loads
+# 5. Draw loads
 max_w = max(load_weights) if load_weights else 1
 for pos, W in zip(load_positions, load_weights):
     if W > 0:
@@ -118,19 +132,21 @@ for pos, W in zip(load_positions, load_weights):
         arrow_len = max(arrow_len_max * (W / max_w) if max_w > 0 else 1, 0.3)
         top_of_arrow = y_at_top + arrow_len + 0.1 
         
-        ax.arrow(pos, top_of_arrow, 0, -arrow_len, head_width=span*0.015, head_length=rise*0.02, fc='black', ec='black')
+        ax.arrow(pos, top_of_arrow, 0, -arrow_len, head_width=span*0.015, head_length=rise*0.02, fc='black', ec='black', zorder=15)
         ax.text(pos, top_of_arrow + 0.1, f"{W} kg", ha='center', fontsize=9, fontweight='bold')
 
 ax.set_title(status, color=line_color, fontweight='bold', fontsize=14)
 ax.set_xlabel('Bridge Span', fontsize=12)
 ax.set_ylabel('Height', fontsize=12)
 
-# Adjust y-limits so the ground isn't cut off
+# Adjust margins to fit the new ground line
 y_limit_top = rise + thickness + 1.5 
-ax.set_ylim(ground_y - 1.0, y_limit_top)
+ax.set_ylim(ground_y - 0.5, y_limit_top)
 ax.axis('equal')
 ax.grid(True, linestyle=':', alpha=0.6)
-ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.25), ncol=4)
+
+# Hide axis to make it look purely like a diagram (optional, looks cleaner)
+# ax.axis('off') 
 
 st.pyplot(fig)
 
