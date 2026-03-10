@@ -2,13 +2,12 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Removed emojis from page config
 st.set_page_config(layout="wide", page_title="Safety Analysis of Arch Geometry")
 
 st.title("Safety Analysis of Arch Geometry")
 st.markdown("Adjust the sliders to place weights on the bridge. Watch how the **Thrust Line** reacts to the loads.")
 
-# --- UI CONTROLS (SIDEBAR) ---
+# --- UI CONTROLS ---
 st.sidebar.header("1. Bridge Geometry")
 span = st.sidebar.slider("Span (Width)", min_value=5.0, max_value=20.0, value=10.0, step=0.5)
 rise = st.sidebar.slider("Rise (Height)", min_value=2.0, max_value=10.0, value=4.0, step=0.5)
@@ -29,7 +28,6 @@ for i in range(num_loads):
     load_positions.append(pos)
     load_weights.append(weight)
 
-# --- PHYSICS & MATH ---
 x_arch = np.linspace(0, span, 500)
 y_center = (4 * rise / span**2) * x_arch * (span - x_arch)
 
@@ -84,7 +82,7 @@ else:
 
 ax.plot(x_arch, y_thrust, color=line_color, linewidth=3, label='Thrust Line')
 
-# --- VISUALIZING THE SUPPORTS ---
+# --- VISUALIZATION ---
 ax.plot(0, 0, marker='^', markersize=16, color='black', clip_on=False, zorder=5)
 ax.plot(span, 0, marker='^', markersize=16, color='black', clip_on=False, zorder=5)
 ax.plot(span/2, rise, marker='o', markersize=10, markerfacecolor='white', markeredgecolor='black', markeredgewidth=2, zorder=5, label='Virtual Crown Hinge')
@@ -113,7 +111,6 @@ ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.25), ncol=4)
 
 st.pyplot(fig)
 
-# --- CLEAN LEGEND WITH COLORED DOTS ---
 st.markdown("""
 ### How to read this chart:
 * <span style='color:#2ca02c;'>●</span> **Green Line:** Safe. The blocks are pressing tightly together.
@@ -144,3 +141,4 @@ with col2:
     3. **Infinite Compressive Strength:** We assume the stones will not crush under pressure.
     4. **No Sliding:** Friction between the blocks is high enough that they will not slide past one another.
     """)
+
