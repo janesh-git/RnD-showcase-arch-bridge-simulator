@@ -54,7 +54,7 @@ for i, x_val in enumerate(x_arch):
 
 M_total = M_dead + M_live
 
-# Horizontal Thrust Calculation
+# Horizontal Thrust Calculation (Assuming virtual hinge at crown)
 moment_at_crown = M_total[len(x_arch)//2]
 H = moment_at_crown / rise if rise != 0 else 1
 y_thrust = M_total / H if H != 0 else np.zeros_like(x_arch)
@@ -70,7 +70,7 @@ fig, ax = plt.subplots(figsize=(12, 6))
 arch_color = '#e6e6e6'
 core_color = '#cce5ff'
 
-ax.fill_between(x_arch, y_bottom, y_top, color=arch_color, alpha=1.0, zorder=1)
+ax.fill_between(x_arch, y_bottom, y_top, color=arch_color, alpha=1.0, zorder=2)
 ax.plot(x_arch, y_top, 'k-', linewidth=2, zorder=3)
 ax.plot(x_arch, y_bottom, 'k-', linewidth=2, zorder=3)
 
@@ -79,33 +79,19 @@ ax.fill_between(x_arch, y_mid_bot, y_mid_top, color=core_color, alpha=1.0, zorde
 ax.plot(x_arch, y_mid_top, color='blue', linestyle=':', alpha=0.5, zorder=3)
 ax.plot(x_arch, y_mid_bot, color='blue', linestyle=':', alpha=0.5, zorder=3)
 
-# 2. Perfect Geometry End-Caps
-ax.plot([0, 0], [y_bottom[0], y_top[0]], 'k-', linewidth=2, zorder=3)
-ax.plot([span, span], [y_bottom[-1], y_top[-1]], 'k-', linewidth=2, zorder=3)
+# 2. Solid Masonry Abutments (Foundations)
+ground_y = -span * 0.15 
+abutment_w = span * 0.08
 
-# 3. Ground and Natural Supports
-ground_y = -span * 0.12 
-tri_w = span * 0.05     
-
+# Thick Ground Line
 ax.plot([-span*0.1, span*1.1], [ground_y, ground_y], color='#333333', linewidth=4, zorder=1)
 
-# Solid Base Triangles
-left_tri = np.array([[0, 0], [-tri_w/2, ground_y], [tri_w/2, ground_y]])
-ax.fill(left_tri[:,0], left_tri[:,1], color='#555555', zorder=10)
+# Left Foundation Block
+ax.add_patch(patches.Rectangle((-abutment_w, ground_y), abutment_w, y_top[0] - ground_y, facecolor='#555555', edgecolor='black', linewidth=2, zorder=5))
+# Right Foundation Block
+ax.add_patch(patches.Rectangle((span, ground_y), abutment_w, y_top[-1] - ground_y, facecolor='#555555', edgecolor='black', linewidth=2, zorder=5))
 
-right_tri = np.array([[span, 0], [span - tri_w/2, ground_y], [span + tri_w/2, ground_y]])
-ax.fill(right_tri[:,0], right_tri[:,1], color='#555555', zorder=10)
-
-# Mechanical Pins
-ax.add_patch(patches.Circle((0, 0), radius=thickness/2.5, facecolor='white', edgecolor='black', linewidth=2, zorder=11))
-ax.add_patch(patches.Circle((span, 0), radius=thickness/2.5, facecolor='white', edgecolor='black', linewidth=2, zorder=11))
-ax.add_patch(patches.Circle((0, 0), radius=thickness/8, facecolor='#333333', edgecolor='none', zorder=12))
-ax.add_patch(patches.Circle((span, 0), radius=thickness/8, facecolor='#333333', edgecolor='none', zorder=12))
-
-# Virtual Crown Hinge
-ax.plot(span/2, rise, marker='o', markersize=10, markerfacecolor='white', markeredgecolor='black', markeredgewidth=2, zorder=12, label='Virtual Crown Hinge')
-
-# 4. HINGE FORMATION (COLLAPSE MECHANISM) DETECTION
+# 3. HINGE FORMATION DETECTION
 failure_hinges_x = []
 failure_hinges_y = []
 
@@ -124,7 +110,7 @@ if not is_inside_blocks:
         failure_hinges_x.append(x_arch[idx])
         failure_hinges_y.append(y_bottom[idx]) # Hinge forms on the surface
 
-# 5. Thrust Line Status
+# 4. Thrust Line Status & Color
 if is_in_middle_third:
     line_color = '#2ca02c'
     status = "SAFE: Thrust line in middle third. Pure compression."
@@ -138,13 +124,11 @@ else:
 # Plot Thrust Line
 ax.plot(x_arch, y_thrust, color=line_color, linewidth=3, zorder=13, label='Thrust Line')
 
-# 6. Plot the Visual Red Hinges if collapsed
+# 5. Plot the Visual Red Hinges ONLY at breakout points
 if failure_hinges_x:
     ax.scatter(failure_hinges_x, failure_hinges_y, color='red', s=250, edgecolor='black', linewidth=2, zorder=20, label='PLASTIC HINGE (Crack)')
-    # Base supports also act as hinges during collapse
-    ax.scatter([0, span], [0, 0], color='red', s=150, edgecolor='black', linewidth=2, zorder=20)
 
-# 7. Draw Live Loads
+# 6. Draw Live Loads
 max_w = max(load_weights) if load_weights else 1
 for pos, W in zip(load_positions, load_weights):
     if W > 0:
@@ -158,7 +142,7 @@ for pos, W in zip(load_positions, load_weights):
 
 ax.set_title(status, color=line_color, fontweight='bold', fontsize=16)
 
-# Hide numerical axes for a cleaner "blueprint" look
+# Hide numerical axes for a clean "blueprint" look
 ax.set_xticks([])
 ax.set_yticks([])
 
@@ -168,7 +152,7 @@ ax.axis('equal')
 ax.grid(False)
 
 # Custom tight legend
-ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.15), ncol=4, frameon=False)
+ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.15), ncol=2, frameon=False)
 
 st.pyplot(fig)
 
@@ -186,7 +170,7 @@ st.markdown("---")
 st.markdown("### Structural Engineering Assumptions")
 st.markdown("""
 Based on the fundamental theorems of masonry (Plastic Theory):
-1. **Three-Hinged Arch Anchor:** We assume a virtual hinge at the crown and two at the bases to calculate the outward thrust.
+1. **Mathematical Crown Hinge:** To calculate the forces, the math assumes the thrust line passes perfectly through the center block. We do not draw a physical hinge here because real stones remain solid.
 2. **Zero Tensile Strength:** Masonry blocks and mortar cannot stretch. If the thrust line leaves the geometry, the joint immediately cracks and forms a pivot (hinge).
-3. **Four-Hinge Mechanism:** An arch will not collapse from one single crack. It must form four simultaneous hinges (turning into a moving mechanism) to physically fall.
+3. **Collapse Mechanism:** When overloaded, the bridge will crack at the exact points indicated by the red dots, breaking into chunks and triggering a physical collapse.
 """)
