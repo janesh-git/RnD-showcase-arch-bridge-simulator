@@ -91,24 +91,28 @@ ax.add_patch(patches.Rectangle((-abutment_w, ground_y), abutment_w, y_top[0] - g
 # Right Foundation Block
 ax.add_patch(patches.Rectangle((span, ground_y), abutment_w, y_top[-1] - ground_y, facecolor='#555555', edgecolor='black', linewidth=2, zorder=5))
 
-# 3. HINGE FORMATION DETECTION
+# 3. 4-HINGE FORMATION DETECTION (UPDATED LOGIC)
 failure_hinges_x = []
 failure_hinges_y = []
 
 if not is_inside_blocks:
-    # Check where thrust line breaks through the TOP (Extrados)
+    # 1 & 2: The Two Abutments crack (Base Hinges)
+    failure_hinges_x.extend([0, span])
+    failure_hinges_y.extend([y_center[0], y_center[-1]])
+    
+    # Calculate the pressure points
     diff_top = y_thrust - y_top
-    if np.max(diff_top) > 0:
-        idx = np.argmax(diff_top)
-        failure_hinges_x.append(x_arch[idx])
-        failure_hinges_y.append(y_top[idx]) # Hinge forms on the surface
-        
-    # Check where thrust line breaks through the BOTTOM (Intrados)
     diff_bot = y_bottom - y_thrust
-    if np.max(diff_bot) > 0:
-        idx = np.argmax(diff_bot)
-        failure_hinges_x.append(x_arch[idx])
-        failure_hinges_y.append(y_bottom[idx]) # Hinge forms on the surface
+    
+    # 3: Extrados Hinge (Top crack where bridge bulges up)
+    idx_top = np.argmax(diff_top)
+    failure_hinges_x.append(x_arch[idx_top])
+    failure_hinges_y.append(y_top[idx_top])
+        
+    # 4: Intrados Hinge (Bottom crack under the load)
+    idx_bot = np.argmax(diff_bot)
+    failure_hinges_x.append(x_arch[idx_bot])
+    failure_hinges_y.append(y_bottom[idx_bot])
 
 # 4. Thrust Line Status & Color
 if is_in_middle_third:
@@ -119,12 +123,12 @@ elif is_inside_blocks:
     status = "WARNING: Thrust line exited middle third. Tension cracks forming!"
 else:
     line_color = '#d62728'
-    status = "CRITICAL MECHANISM: Hinges have formed. COLLAPSE!"
+    status = "CRITICAL 4-HINGE MECHANISM: Bridge has collapsed!"
 
 # Plot Thrust Line
 ax.plot(x_arch, y_thrust, color=line_color, linewidth=3, zorder=13, label='Thrust Line')
 
-# 5. Plot the Visual Red Hinges ONLY at breakout points
+# 5. Plot the 4 Visual Red Hinges
 if failure_hinges_x:
     ax.scatter(failure_hinges_x, failure_hinges_y, color='red', s=250, edgecolor='black', linewidth=2, zorder=20, label='PLASTIC HINGE (Crack)')
 
@@ -142,7 +146,7 @@ for pos, W in zip(load_positions, load_weights):
 
 ax.set_title(status, color=line_color, fontweight='bold', fontsize=16)
 
-# Hide numerical axes for a clean "blueprint" look
+# Hide numerical axes
 ax.set_xticks([])
 ax.set_yticks([])
 
@@ -161,7 +165,7 @@ st.markdown("""
 ### How to read this analysis:
 * <span style='color:#2ca02c;'>●</span> **Green Line:** Safe. The geometry keeps all blocks in perfect compression.
 * <span style='color:#ff7f0e;'>●</span> **Orange Line:** Danger. The line has left the blue core; mortar is cracking under tension.
-* <span style='color:#d62728;'>●</span> **Red Line & Red Dots:** Failure. The thrust line pushed outside the stones. Plastic hinges have formed, creating a collapse mechanism.
+* <span style='color:#d62728;'>●</span> **Red Line & Red Dots:** Failure. The fixed arch is statically indeterminate to the 3rd degree. It must form **4 distinct plastic hinges** to become a kinematic mechanism and collapse. 
 """, unsafe_allow_html=True)
 
 st.markdown("---")
@@ -169,8 +173,10 @@ st.markdown("---")
 # --- ASSUMPTIONS ONLY ---
 st.markdown("### Structural Engineering Assumptions")
 st.markdown("""
-Based on the fundamental theorems of masonry (Plastic Theory):
-1. **Mathematical Crown Hinge:** To calculate the forces, the math assumes the thrust line passes perfectly through the center block. We do not draw a physical hinge here because real stones remain solid.
-2. **Zero Tensile Strength:** Masonry blocks and mortar cannot stretch. If the thrust line leaves the geometry, the joint immediately cracks and forms a pivot (hinge).
-3. **Collapse Mechanism:** When overloaded, the bridge will crack at the exact points indicated by the red dots, breaking into chunks and triggering a physical collapse.
+Based on **Jacques Heyman's Plastic Theory of Masonry (1966)**, this analysis strictly relies on the following classical assumptions:
+1. **Zero Tensile Strength:** Masonry blocks and mortar cannot withstand pulling forces. If the thrust line exits the geometry, the joint immediately cracks and forms a pivot (plastic hinge).
+2. **Infinite Compressive Strength:** We assume the stone will not crush under pressure. In historical masonry, working stresses are generally an order of magnitude lower than the crushing strength of stone, meaning failure is driven by instability, not material failure.
+3. **No Sliding Failure:** Friction between the heavy, wedge-shaped blocks (voussoirs) is high enough that they will never slide past one another. The arch will exclusively fail by rotation (hinging).
+4. **The Safe Theorem (Virtual Crown Hinge):** A fixed arch is statically indeterminate. To solve the statics, we assume a virtual hinge at the crown to calculate the Horizontal Thrust. Heyman's Safe Theorem dictates that if *any* internal thrust line can be found that stays within the geometry, the structure is guaranteed to be safe.
+5. **Kinematic Mechanism (Degree of Freedom > 0):** A fixed arch will not collapse from one single crack. Because its redundancy degree is 3, it requires exactly **4 hinges** to physically break into segments and fall.
 """)
